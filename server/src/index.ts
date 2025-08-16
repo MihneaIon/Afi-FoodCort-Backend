@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import restaurantRoutes from './routes/restaurant';
 import categoryRoutes from './routes/categories';
+import reviewsRouter from './routes/reviews';
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 // Routes
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/reviews', reviewsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

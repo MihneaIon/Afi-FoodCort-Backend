@@ -60,7 +60,7 @@ async function main() {
         name: 'Turkeys Food',
         slug: 'turkeysfood',
         description: 'Turkeys Food',
-        icon: '🍟'
+        icon: '🦃'
       }
     }),
     prisma.category.create({
@@ -68,7 +68,7 @@ async function main() {
         name: 'Leabanese Food',
         slug: 'leabanesefood',
         description: 'Healty Leabanese food',
-        icon: '🥗'
+        icon: '🥙'
       }
     })
   ]);
