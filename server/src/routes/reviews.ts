@@ -60,6 +60,12 @@ router.post('/', async (req, res) => {
   }
 });
 
+// router.get('/', async (req, res) => {
+//   try {
+//     const 
+//   }
+// })
+
 // GET reviews for restaurant
 router.get('/restaurant/:restaurantId', async (req, res) => {
   try {

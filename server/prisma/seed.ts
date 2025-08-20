@@ -79,15 +79,17 @@ async function main() {
   const restaurants = await Promise.all([
     prisma.restaurant.create({
       data: {
-        name: 'Mama Mia Pizzeria',
-        description: 'Authentic Italian pizza and pasta in the heart of the city',
-        address: '123 Main Street, Downtown',
-        phone: '+1 (555) 123-4567',
-        website: 'https://mamamiapizza.com',
-        imageUrl: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800',
+        name: 'MiPiace',
+        description: 'Restaurantul folosește ingrediente proaspete de înaltă calitate, achiziționate de la furnizori de încredere în fiecare dimineață, pentru a prepara paste delicioase și sățioase. Meniul este actualizat de mai multe ori pe lună, însă Mi Piace rămâne fidel rețetelor tradiționale italiene și tehnologiilor de gătit. Produsele servite sunt naturale, cu paste preparate chiar la restaurant din făină de înaltă calitate, ouă, lapte, unt și multă dragoste. Culorile pastelor sunt obținute într-un mod natural, oferind un aspect atrăgător și autentic. Pentru cei cu preferințe dietetice speciale, Mi Piace oferă și opțiuni vegetariane.',
+        address: 'Bulevardul 15 Noiembrie 78 Etajul 1',
+        phone: '',
+        website: 'https://afibrasov.ro/retailer/mipiace/',
+        imageUrl: 'https://afibrasov.ro/wp-content/uploads/2024/10/MiPiace-Afi-Mall-Brasov-1536x864.png',
         rating: 4.5,
         priceRange: '$$',
         isOpen: true,
+        discountPercentage: 20,
+        applyDiscount: true,
         categories: {
           create: [
             { category: { connect: { id: categories[0].id } } } // Italian
@@ -95,42 +97,6 @@ async function main() {
         }
       }
     }),
-    prisma.restaurant.create({
-      data: {
-        name: 'Dragon Palace',
-        description: 'Traditional Chinese cuisine with modern presentation',
-        address: '456 Oak Avenue, Chinatown',
-        phone: '+1 (555) 987-6543',
-        website: 'https://dragonpalace.com',
-        imageUrl: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=800',
-        rating: 4.2,
-        priceRange: '$$$',
-        isOpen: true,
-        categories: {
-          create: [
-            { category: { connect: { id: categories[1].id } } } // Asian
-          ]
-        }
-      }
-    }),
-    prisma.restaurant.create({
-      data: {
-        name: 'El Sombrero',
-        description: 'Vibrant Mexican restaurant with live mariachi music',
-        address: '789 Sunset Boulevard, West Side',
-        phone: '+1 (555) 456-7890',
-        website: 'https://elsombrero.com',
-        imageUrl: 'https://images.unsplash.com/photo-1565299585323-38174c9a3f5e?w=800',
-        rating: 4.7,
-        priceRange: '$$',
-        isOpen: true,
-        categories: {
-          create: [
-            { category: { connect: { id: categories[2].id } } } // Mexican
-          ]
-        }
-      }
-    })
   ]);
 
   console.log('✅ Restaurants created:', restaurants.length);

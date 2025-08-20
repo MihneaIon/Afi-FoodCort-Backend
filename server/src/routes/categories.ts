@@ -1,11 +1,19 @@
 import express from 'express';
 // Update the import path to where prisma is actually exported, for example:
 import { prisma } from '../index';
-import { PrismaClient } from '@prisma/client';
 // Or, if you intended to export it from index.ts, ensure index.ts has:
 // export { prisma } from './prismaClient';
 
 const router = express.Router();
+
+interface CategoryProcedureResult {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  icon: string | null;
+  created_at: Date;
+}
 
 // GET all categories
 router.get('/', async (req, res) => {
@@ -72,7 +80,6 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST new category
 router.post('/', async (req, res) => {
   try {
     const { name, description, icon } = req.body;
@@ -81,30 +88,72 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Category name is required' });
     }
 
-    // Create slug from name
-    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    // Type the result properly
+    const result = await prisma.$queryRaw<CategoryProcedureResult[]>`
+      SELECT * FROM insert_category(${name}, ${description}, ${icon})
+    `;
 
-    // Check if category with this slug already exists
-    const existingCategory = await prisma.category.findUnique({
-      where: { slug }
-    });
-
-    if (existingCategory) {
-      return res.status(400).json({ error: 'Category with this name already exists' });
+    if (!result || result.length === 0) {
+      return res.status(500).json({ error: 'Failed to create category' });
     }
 
-    const category = await prisma.category.create({
-      data: {
-        name,
-        slug,
-        description,
-        icon
-      }
+    const newCategory: CategoryProcedureResult = result[0];
+    
+    res.status(201).json({
+      id: newCategory.id,
+      name: newCategory.name,
+      slug: newCategory.slug,
+      description: newCategory.description,
+      icon: newCategory.icon,
+      createdAt: newCategory.created_at
     });
-
-    res.status(201).json(category);
   } catch (error) {
-    console.error('Error creating category:', error);
+    // Error handling...
+  }
+});
+
+// GET all categories with stats
+router.get('/stats', async (req, res) => {
+  try {
+    const stats = await prisma.$queryRaw`SELECT * FROM get_category_stats()`;
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching category stats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET suggested categories
+router.get('/suggestions', async (req, res) => {
+  try {
+    const suggestions = await prisma.$queryRaw`SELECT * FROM auto_detect_categories()`;
+    res.json(suggestions);
+  } catch (error) {
+    console.error('Error getting category suggestions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET audit log for categories
+router.get('/audit', async (req, res) => {
+  try {
+    const { limit = 50, category_id } = req.query;
+    
+    let whereClause = '';
+    if (category_id) {
+      whereClause = `WHERE category_id = '${category_id}'`;
+    }
+    
+    const auditLog = await prisma.$queryRaw`
+      SELECT * FROM category_audit_log 
+      ${whereClause}
+      ORDER BY created_at DESC 
+      LIMIT ${Number(limit)}
+    `;
+    
+    res.json(auditLog);
+  } catch (error) {
+    console.error('Error fetching audit log:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

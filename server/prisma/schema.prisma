@@ -18,6 +18,8 @@ model Restaurant {
   rating      Float    @default(0)
   priceRange  String   // $, $$, $$$, $$$$
   isOpen      Boolean  @default(true)
+  applyDiscount    Boolean  @default(false)    // Nou: dacă se aplică discount
+  discountPercentage Float? // Nou: procentul de discount (opțional)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
