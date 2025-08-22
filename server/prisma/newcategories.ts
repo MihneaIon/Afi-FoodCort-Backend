@@ -7,6 +7,30 @@ async function main() {
   const categories = await Promise.all([
     prisma.category.create({
       data: {
+        name: 'Salat',
+        slug: 'salat',
+        description: 'Healthy and fresh salads',
+        icon: '🥗'
+      }
+    }),
+    prisma.category.create({
+      data: {
+        name: 'Desert',
+        slug: 'desert',
+        description: 'Healty and sweetr desert',
+        icon: '🍰'
+      }
+    }),
+    prisma.category.create({
+      data: {
+        name: 'Pizza',
+        slug: 'pizza',
+        description: 'Pizza with fresh ingredients',
+        icon: '🍕'
+      }
+    }),
+    prisma.category.create({
+      data: {
         name: 'Romanian',
         slug: 'romanian',
         description: 'Traditional Romanian cuisine with a modern twist',

@@ -3,23 +3,27 @@ import { prisma } from '../index'
 
 const router = express.Router();
 
-// GET all restaurants with filters
+// GET all restaurants with filters and pagination
 router.get('/', async (req, res) => {
   try {
-    const {
-      category,
-      priceRange,
-      rating,
+    const { 
+      category, 
+      priceRange, 
+      rating, 
       search,
       page = 1,
-      limit = 12
+      limit = 12,
+      sortBy = 'rating',      // Nou
+      sortOrder = 'desc'      // Nou
     } = req.query;
 
-    const skip = (Number(page) - 1) * Number(limit);
+    console.log('Backend: Received query params', req.query);
 
-    const where: any = {
-      isOpen: true,
-    };
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    console.log('Backend: Pagination', { page: Number(page), limit: Number(limit), skip });
+
+    const where: any = {};
 
     // Search filter
     if (search) {
@@ -52,6 +56,31 @@ router.get('/', async (req, res) => {
       };
     }
 
+    // Sortare - configurează orderBy
+    let orderBy: any = {};
+    
+    switch (sortBy) {
+      case 'name':
+        orderBy = { name: sortOrder };
+        break;
+      case 'rating':
+        orderBy = { rating: sortOrder };
+        break;
+      case 'price':
+        // Pentru price, sortăm după priceRange (care e string)
+        // Vom face o sortare custom
+        orderBy = { priceRange: sortOrder };
+        break;
+      case 'newest':
+        orderBy = { createdAt: sortOrder };
+        break;
+      default:
+        orderBy = { rating: 'desc' };
+    }
+
+    console.log('Backend: Where clause', JSON.stringify(where, null, 2));
+    console.log('Backend: Order by', orderBy);
+
     const [restaurants, total] = await Promise.all([
       prisma.restaurant.findMany({
         where,
@@ -68,20 +97,38 @@ router.get('/', async (req, res) => {
         },
         skip,
         take: Number(limit),
-        orderBy: { rating: 'desc' }
+        orderBy
       }),
       prisma.restaurant.count({ where })
     ]);
 
-    res.json({
-      restaurants,
+    // Pentru sortarea după preț, facem o sortare custom în JavaScript
+    let sortedRestaurants = restaurants;
+    if (sortBy === 'price') {
+      const priceOrder = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
+      sortedRestaurants = restaurants.sort((a, b) => {
+        const aPrice = priceOrder[a.priceRange as keyof typeof priceOrder] || 0;
+        const bPrice = priceOrder[b.priceRange as keyof typeof priceOrder] || 0;
+        return sortOrder === 'asc' ? aPrice - bPrice : bPrice - aPrice;
+      });
+    }
+
+    const response = {
+      restaurants: sortedRestaurants,
       pagination: {
         page: Number(page),
         limit: Number(limit),
         total,
         pages: Math.ceil(total / Number(limit))
       }
+    };
+
+    console.log('Backend: Sending response', {
+      restaurantCount: sortedRestaurants.length,
+      pagination: response.pagination
     });
+
+    res.json(response);
   } catch (error) {
     console.error('Error fetching restaurants:', error);
     res.status(500).json({ error: 'Internal server error' });

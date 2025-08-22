@@ -70,6 +70,22 @@ async function main() {
         description: 'Healty Leabanese food',
         icon: '🥙'
       }
+    }),
+    prisma.category.create({
+      data: {
+        name: 'Desert',
+        slug: 'desert',
+        description: 'Healty and sweetr desert',
+        icon: '🍰'
+      }
+    }),
+    prisma.category.create({
+      data: {
+        name: 'Pizza',
+        slug: 'pizza',
+        description: 'Pizza with fresh ingredients',
+        icon: '🍕'
+      }
     })
   ]);
 
