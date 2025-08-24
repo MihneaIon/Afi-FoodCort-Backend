@@ -9,7 +9,9 @@ router.get('/', async (req, res) => {
     const { 
       category, 
       priceRange, 
-      rating, 
+      rating,
+      discounted,
+      applyMealTickets,
       search,
       page = 1,
       limit = 12,
@@ -56,6 +58,16 @@ router.get('/', async (req, res) => {
       };
     }
 
+    // Discount filter
+    if (discounted === 'true') {
+      where.applyDiscount = true;
+    }
+
+    // Meal tickets filter
+    if (applyMealTickets === 'true') {
+      where.isAcceptedMealTickets = true;
+    }
+
     // Sortare - configurează orderBy
     let orderBy: any = {};
     
@@ -73,6 +85,9 @@ router.get('/', async (req, res) => {
         break;
       case 'newest':
         orderBy = { createdAt: sortOrder };
+        break;
+      case 'mealTickets':
+        orderBy = { acceptsMealTickets: sortOrder };
         break;
       default:
         orderBy = { rating: 'desc' };
@@ -177,6 +192,7 @@ router.post('/', async (req, res) => {
       priceRange,
       applyDiscount = false,      // Nou cu valoare default
       discountPercentage,         // Nou
+      isAcceptedMealTickets,
       categoryIds
     } = req.body;
 
@@ -240,6 +256,7 @@ router.post('/', async (req, res) => {
         priceRange,
         applyDiscount,              // Nou
         discountPercentage: applyDiscount ? discountPercentage : null, // Nou
+        isAcceptedMealTickets,
         categories: {
           create: categoryIds.map((categoryId: string) => ({
             categoryId: categoryId
@@ -291,6 +308,7 @@ router.put('/:id', async (req, res) => {
       isOpen,
       applyDiscount,              // Nou
       discountPercentage,         // Nou
+      isAcceptedMealTickets,
       categoryIds
     } = req.body;
 
@@ -315,6 +333,7 @@ router.put('/:id', async (req, res) => {
         isOpen,
         applyDiscount,              // Nou
         discountPercentage: applyDiscount ? discountPercentage : null, // Nou
+        isAcceptedMealTickets,
       },
       include: {
         categories: {

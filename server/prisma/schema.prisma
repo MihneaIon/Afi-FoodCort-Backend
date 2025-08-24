@@ -20,6 +20,7 @@ model Restaurant {
   isOpen      Boolean  @default(true)
   applyDiscount    Boolean  @default(false)    // Nou: dacă se aplică discount
   discountPercentage Float? // Nou: procentul de discount (opțional)
+  isAcceptedMealTickets Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
