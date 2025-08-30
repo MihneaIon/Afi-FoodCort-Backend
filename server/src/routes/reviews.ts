@@ -33,11 +33,20 @@ router.post('/', async (req, res) => {
     // Create review
     const review = await prisma.review.create({
       data: {
-        restaurantId,
         rating,
         comment,
-        userName,
-        userEmail
+        restaurant: {
+          connect: { id: restaurantId }
+        },
+        user: {
+          connectOrCreate: {
+            where: { email: userEmail },
+            create: {
+              name: userName,
+              email: userEmail
+            }
+          }
+        }
       }
     });
 

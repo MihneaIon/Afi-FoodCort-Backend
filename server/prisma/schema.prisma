@@ -63,7 +63,32 @@ model Review {
   userEmail    String?
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   restaurantId String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
   createdAt    DateTime   @default(now())
   
   @@map("reviews")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      UserRole @default(USER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  reviews   Review[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  RESTAURANT_OWNER
 }
