@@ -35,9 +35,7 @@ router.post('/', async (req, res) => {
       data: {
         restaurantId,
         rating,
-        comment,
-        userName,
-        userEmail
+        comment
       }
     });
 
