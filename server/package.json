@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "migrate:deploy": "prisma migrate deploy && prisma db seed && ts-node prisma/newcategories.ts",
+    "migrate:deploy": "prisma db seed && ts-node prisma/newcategories.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
@@ -38,6 +38,9 @@
     "prisma": "^6.14.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
+  },
+  "prisma":{
+    "seed": "ts-node prisma/seed.ts && ts-node prisma/newcategories.ts"
   },
   "engines": {
     "node": "20.11.0"

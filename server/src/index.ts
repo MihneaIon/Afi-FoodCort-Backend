@@ -23,6 +23,9 @@ app.use('/api/reviews', reviewsRouter);
 app.get('/test', (req, res) => {
   res.send('Deployment is working!');
 });
+app.get("/", (req, res) => {
+  res.send("Server is running!");
+});
 
 
 // Health check
