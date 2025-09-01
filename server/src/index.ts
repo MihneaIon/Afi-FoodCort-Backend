@@ -20,6 +20,10 @@ app.use(express.json());
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/reviews', reviewsRouter);
+app.get('/test', (req, res) => {
+  res.send('Deployment is working!');
+});
+
 
 // Health check
 app.get('/api/health', (req, res) => {
