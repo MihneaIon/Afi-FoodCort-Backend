@@ -118,38 +118,38 @@ async function main() {
   console.log('✅ Restaurants created:', restaurants.length);
 
   // Create sample reviews
-  const reviews = await Promise.all([
-    prisma.review.create({
-      data: {
-        rating: 5,
-        comment: 'Amazing pizza! The crust was perfect and the sauce was delicious.',
-        userName: 'John Doe',
-        userEmail: 'john@example.com',
-        restaurantId: restaurants[0].id
-      }
-    }),
-    prisma.review.create({
-      data: {
-        rating: 4,
-        comment: 'Great atmosphere and friendly service. Will definitely come back!',
-        userName: 'Jane Smith',
-        userEmail: 'jane@example.com',
-        restaurantId: restaurants[0].id
-      }
-    }),
-    prisma.review.create({
-      data: {
-        rating: 5,
-        comment: 'Best Chinese food in the city! The dumplings were incredible.',
-        userName: 'Mike Johnson',
-        userEmail: 'mike@example.com',
-        restaurantId: restaurants[1].id
-      }
-    })
-  ]);
+  // const reviews = await Promise.all([
+  //   prisma.review.create({
+  //     data: {
+  //       rating: 5,
+  //       comment: 'Amazing pizza! The crust was perfect and the sauce was delicious.',
+  //       userName: 'John Doe',
+  //       userEmail: 'john@example.com',
+  //       restaurantId: restaurants[0].id
+  //     }
+  //   }),
+  //   prisma.review.create({
+  //     data: {
+  //       rating: 4,
+  //       comment: 'Great atmosphere and friendly service. Will definitely come back!',
+  //       userName: 'Jane Smith',
+  //       userEmail: 'jane@example.com',
+  //       restaurantId: restaurants[0].id
+  //     }
+  //   }),
+  //   prisma.review.create({
+  //     data: {
+  //       rating: 5,
+  //       comment: 'Best Chinese food in the city! The dumplings were incredible.',
+  //       userName: 'Mike Johnson',
+  //       userEmail: 'mike@example.com',
+  //       restaurantId: restaurants[1].id
+  //     }
+  //   })
+  // ]);
 
-  console.log('✅ Reviews created:', reviews.length);
-  console.log('🎉 Seeding completed successfully!');
+  // console.log('✅ Reviews created:', reviews.length);
+  // console.log('🎉 Seeding completed successfully!');
 }
 
 main()
