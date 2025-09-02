@@ -1,5 +1,5 @@
 # Sau pentru user postgres default:
-DATABASE_URL="postgresql://postgres:1q2w3e@localhost:5432/Afi"
+# DATABASE_URL="postgresql://postgres:1q2w3e@localhost:5432/Afi"
 
 # Server
 PORT=5000

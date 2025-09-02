@@ -37,4 +37,17 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
 
+async function testConnection() {
+  try {
+    const result = await prisma.$queryRaw`SELECT NOW()`;
+    console.log("✅ Conexiune reușită! Timp:", result);
+  } catch (err) {
+    console.error("❌ Eroare la conexiune:", err);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+testConnection();
+
 export { prisma };
