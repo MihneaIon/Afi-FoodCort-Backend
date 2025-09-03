@@ -15,8 +15,8 @@ router.get('/', async (req, res) => {
       search,
       page = 1,
       limit = 12,
-      sortBy = 'rating',      // Nou
-      sortOrder = 'desc'      // Nou
+      sortBy = 'rating',      
+      sortOrder = 'desc'      // sau asc
     } = req.query;
 
     console.log('Backend: Received query params', req.query);
@@ -117,7 +117,7 @@ router.get('/', async (req, res) => {
       prisma.restaurant.count({ where })
     ]);
 
-    // Pentru sortarea după preț, facem o sortare custom în JavaScript
+    // Pentru sortarea după preț, am sortare custom în JavaScript
     let sortedRestaurants = restaurants;
     if (sortBy === 'price') {
       const priceOrder = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
