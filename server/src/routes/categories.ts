@@ -1,8 +1,5 @@
-import express from 'express';
-// Update the import path to where prisma is actually exported, for example:
+import express from 'express';import { Prisma } from '@prisma/client';
 import { prisma } from '../index';
-// Or, if you intended to export it from index.ts, ensure index.ts has:
-// export { prisma } from './prismaClient';
 
 const router = express.Router();
 
@@ -30,8 +27,8 @@ router.get('/', async (req, res) => {
     });
 
     // Add restaurant count to each category
-    const categoriesWithCount = categories.map((category: { restaurants: string | any[]; }) => ({
-      ...category,
+     const categoriesWithCount = categories.map((category: { restaurants: unknown[] }) => ({
+     ...category,
       restaurantCount: category.restaurants.length,
       restaurants: undefined // Remove the restaurants array from response
     }));
@@ -43,7 +40,56 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET single category
+// NOTE: Static routes (/stats, /suggestions, /audit) MUST be declared before the
+// dynamic "/:id" route, otherwise Express matches them as an id and they become dead.
+
+// GET all categories with stats
+router.get('/stats', async (req, res) => {
+  try {
+    const stats = await prisma.$queryRaw`SELECT * FROM get_category_stats()`;
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching category stats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET suggested categories
+router.get('/suggestions', async (req, res) => {
+  try {
+    const suggestions = await prisma.$queryRaw`SELECT * FROM auto_detect_categories()`;
+    res.json(suggestions);
+  } catch (error) {
+    console.error('Error getting category suggestions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET audit log for categories
+router.get('/audit', async (req, res) => {
+  try {
+    const { limit = 50, category_id } = req.query;
+
+    // Clamp the limit to a sane range so a client can't request the whole table.
+    const parsedLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
+
+    // Parameterized query: category_id is bound as a value, never concatenated,
+    // so this is no longer vulnerable to SQL injection.
+    const auditLog = await prisma.$queryRaw`
+      SELECT * FROM category_audit_log
+      ${category_id ? Prisma.sql`WHERE category_id = ${category_id}` : Prisma.empty}
+      ORDER BY created_at DESC
+      LIMIT ${parsedLimit}
+    `;
+
+    res.json(auditLog);
+  } catch (error) {
+    console.error('Error fetching audit log:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET single category (dynamic route — declared AFTER the static ones above)
 router.get('/:id', async (req, res) => {
   try {
     const category = await prisma.category.findUnique({
@@ -80,6 +126,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// POST new category
 router.post('/', async (req, res) => {
   try {
     const { name, description, icon } = req.body;
@@ -98,7 +145,7 @@ router.post('/', async (req, res) => {
     }
 
     const newCategory: CategoryProcedureResult = result[0];
-    
+
     res.status(201).json({
       id: newCategory.id,
       name: newCategory.name,
@@ -108,52 +155,9 @@ router.post('/', async (req, res) => {
       createdAt: newCategory.created_at
     });
   } catch (error) {
-    // Error handling...
-  }
-});
-
-// GET all categories with stats
-router.get('/stats', async (req, res) => {
-  try {
-    const stats = await prisma.$queryRaw`SELECT * FROM get_category_stats()`;
-    res.json(stats);
-  } catch (error) {
-    console.error('Error fetching category stats:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// GET suggested categories
-router.get('/suggestions', async (req, res) => {
-  try {
-    const suggestions = await prisma.$queryRaw`SELECT * FROM auto_detect_categories()`;
-    res.json(suggestions);
-  } catch (error) {
-    console.error('Error getting category suggestions:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// GET audit log for categories
-router.get('/audit', async (req, res) => {
-  try {
-    const { limit = 50, category_id } = req.query;
-    
-    let whereClause = '';
-    if (category_id) {
-      whereClause = `WHERE category_id = '${category_id}'`;
-    }
-    
-    const auditLog = await prisma.$queryRaw`
-      SELECT * FROM category_audit_log 
-      ${whereClause}
-      ORDER BY created_at DESC 
-      LIMIT ${Number(limit)}
-    `;
-    
-    res.json(auditLog);
-  } catch (error) {
-    console.error('Error fetching audit log:', error);
+    // Previously this catch block was empty, so on error no response was ever
+    // sent and the request hung until the client timed out.
+    console.error('Error creating category:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

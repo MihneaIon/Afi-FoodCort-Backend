@@ -87,7 +87,9 @@ router.get('/', async (req, res) => {
         orderBy = { createdAt: sortOrder };
         break;
       case 'mealTickets':
-        orderBy = { acceptsMealTickets: sortOrder };
+        // Field is `isAcceptedMealTickets` in the schema; the old
+        // `acceptsMealTickets` did not exist and made Prisma throw on this sort.
+        orderBy = { isAcceptedMealTickets: sortOrder };
         break;
       default:
         orderBy = { rating: 'desc' };

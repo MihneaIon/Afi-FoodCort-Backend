@@ -43,11 +43,22 @@ async function testConnection() {
     console.log("✅ Conexiune reușită! Timp:", result);
   } catch (err) {
     console.error("❌ Eroare la conexiune:", err);
-  } finally {
-    await prisma.$disconnect();
   }
+  // NOTE: do NOT call prisma.$disconnect() here. This is the single shared
+  // client used by every route; disconnecting it at startup tore down the
+  // connection pool the app depends on. Disconnect only on graceful shutdown.
 }
 
 testConnection();
+
+// Graceful shutdown: close the Prisma connection pool only when the process exits.
+process.on('SIGINT', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
+process.on('SIGTERM', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
 
 export { prisma };
