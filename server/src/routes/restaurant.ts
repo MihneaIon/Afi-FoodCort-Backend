@@ -6,7 +6,8 @@ import { ApiError } from '../utils/ApiError';
 import {
   RestaurantListQuery,
   CreateRestaurantBody,
-  UpdateRestaurantBody
+  UpdateRestaurantBody,
+  PRICE_RANGES
 } from '../types/dto';
 
 const router = express.Router();
@@ -197,6 +198,10 @@ router.post('/', asyncHandler<unknown, unknown, CreateRestaurantBody>(async (req
       throw new ApiError(400, 'VALIDATION_ERROR', 'Name and address are required');
     }
 
+    if (!PRICE_RANGES.includes(priceRange)) {
+      throw new ApiError(400, 'VALIDATION_ERROR', `priceRange must be one of ${PRICE_RANGES.join(', ')}`);
+    }
+
     if (!categoryIds || !Array.isArray(categoryIds) || categoryIds.length === 0) {
       throw new ApiError(400, 'VALIDATION_ERROR', 'At least one category is required');
     }
@@ -278,6 +283,10 @@ router.put('/:id', asyncHandler<{ id: string }, unknown, UpdateRestaurantBody>(a
     // Validare pentru discount
     if (applyDiscount && (!discountPercentage || discountPercentage <= 0 || discountPercentage > 100)) {
       throw new ApiError(400, 'VALIDATION_ERROR', 'Discount percentage must be between 1 and 100 when applying discount');
+    }
+
+    if (priceRange !== undefined && !PRICE_RANGES.includes(priceRange)) {
+      throw new ApiError(400, 'VALIDATION_ERROR', `priceRange must be one of ${PRICE_RANGES.join(', ')}`);
     }
 
     // Dacă se trimit categoryIds, validează-le și pregătește rescrierea legăturilor.

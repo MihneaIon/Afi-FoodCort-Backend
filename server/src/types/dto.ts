@@ -1,5 +1,13 @@
 import { ParsedQs } from 'qs';
 
+// Kept as plain strings at the DB/wire level (a Prisma enum would rename
+// these to identifiers like MEDIUM, breaking clients that send "$$").
+// The allowed set is enforced at the DB via a CHECK constraint
+// (see prisma/migrations/20260818000000_add_price_rating_check_constraints)
+// and at the route level via PRICE_RANGES below.
+export const PRICE_RANGES = ['$', '$$', '$$$', '$$$$'] as const;
+export type PriceRange = (typeof PRICE_RANGES)[number];
+
 // Query strings arrive as string | ParsedQs | (string | ParsedQs)[] | undefined
 // no matter what the client sends, so every field here is a plain optional
 // string — callers still need Number(...)/comparisons to coerce, same as before.
@@ -24,7 +32,7 @@ export interface CreateRestaurantBody {
   phone?: string;
   website?: string;
   imageUrl?: string;
-  priceRange: string;
+  priceRange: PriceRange;
   applyDiscount?: boolean;
   discountPercentage?: number;
   isAcceptedMealTickets?: boolean;
@@ -38,7 +46,7 @@ export interface UpdateRestaurantBody {
   phone?: string;
   website?: string;
   imageUrl?: string;
-  priceRange?: string;
+  priceRange?: PriceRange;
   isOpen?: boolean;
   applyDiscount?: boolean;
   discountPercentage?: number;
