@@ -57,6 +57,11 @@ export interface CreateCategoryBody {
   icon?: string;
 }
 
+export interface ReviewsByRestaurantQuery extends ParsedQs {
+  page?: string;
+  limit?: string;
+}
+
 export interface CreateReviewBody {
   restaurantId: string;
   rating: number;

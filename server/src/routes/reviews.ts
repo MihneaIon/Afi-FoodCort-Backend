@@ -2,7 +2,7 @@ import express from 'express';
 import { prisma } from '../index';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
-import { CreateReviewBody } from '../types/dto';
+import { CreateReviewBody, ReviewsByRestaurantQuery } from '../types/dto';
 
 const router = express.Router();
 
@@ -66,15 +66,35 @@ router.post('/', asyncHandler<unknown, unknown, CreateReviewBody>(async (req, re
 // })
 
 // GET reviews for restaurant
-router.get('/restaurant/:restaurantId', asyncHandler<{ restaurantId: string }>(async (req, res) => {
+router.get('/restaurant/:restaurantId', asyncHandler<{ restaurantId: string }, unknown, unknown, ReviewsByRestaurantQuery>(async (req, res) => {
     const { restaurantId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
 
-    const reviews = await prisma.review.findMany({
-      where: { restaurantId },
-      orderBy: { createdAt: 'desc' }
+    // Clamp page/limit the same way the restaurant list endpoint does, so a
+    // client can't request an unbounded page size (e.g. limit=999999).
+    const parsedPage = Math.max(Number(page) || 1, 1);
+    const parsedLimit = Math.min(Math.max(Number(limit) || 10, 1), 100);
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where: { restaurantId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: parsedLimit
+      }),
+      prisma.review.count({ where: { restaurantId } })
+    ]);
+
+    res.json({
+      reviews,
+      pagination: {
+        page: parsedPage,
+        limit: parsedLimit,
+        total,
+        pages: Math.ceil(total / parsedLimit)
+      }
     });
-
-    res.json(reviews);
 }));
 
 export default router;

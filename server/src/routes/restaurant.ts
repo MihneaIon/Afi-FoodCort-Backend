@@ -28,9 +28,13 @@ router.get('/', asyncHandler<unknown, unknown, unknown, RestaurantListQuery>(asy
 
     console.log('Backend: Received query params', req.query);
 
-    const skip = (Number(page) - 1) * Number(limit);
-    
-    console.log('Backend: Pagination', { page: Number(page), limit: Number(limit), skip });
+    // Clamp page/limit so a client can't request an unbounded page size
+    // (e.g. limit=999999) or a negative/zero page.
+    const parsedPage = Math.max(Number(page) || 1, 1);
+    const parsedLimit = Math.min(Math.max(Number(limit) || 12, 1), 100);
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    console.log('Backend: Pagination', { page: parsedPage, limit: parsedLimit, skip });
 
     const where: Prisma.RestaurantWhereInput = {};
 
@@ -121,7 +125,7 @@ router.get('/', asyncHandler<unknown, unknown, unknown, RestaurantListQuery>(asy
           }
         },
         skip,
-        take: Number(limit),
+        take: parsedLimit,
         orderBy
       }),
       prisma.restaurant.count({ where })
@@ -135,10 +139,10 @@ router.get('/', asyncHandler<unknown, unknown, unknown, RestaurantListQuery>(asy
     const response = {
       restaurants,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page: parsedPage,
+        limit: parsedLimit,
         total,
-        pages: Math.ceil(total / Number(limit))
+        pages: Math.ceil(total / parsedLimit)
       }
     };
 
