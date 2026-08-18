@@ -2,11 +2,17 @@ import express from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../index'
 import { asyncHandler } from '../utils/asyncHandler';
+import { ApiError } from '../utils/ApiError';
+import {
+  RestaurantListQuery,
+  CreateRestaurantBody,
+  UpdateRestaurantBody
+} from '../types/dto';
 
 const router = express.Router();
 
 // GET all restaurants with filters and pagination
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', asyncHandler<unknown, unknown, unknown, RestaurantListQuery>(async (req, res) => {
     const {
       category, 
       priceRange, 
@@ -156,14 +162,14 @@ router.get('/:id', asyncHandler<{ id: string }>(async (req, res) => {
     });
 
     if (!restaurant) {
-      return res.status(404).json({ error: 'Restaurant not found' });
+      throw new ApiError(404, 'NOT_FOUND', 'Restaurant not found');
     }
 
     res.json(restaurant);
 }));
 
 // POST new restaurant
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/', asyncHandler<unknown, unknown, CreateRestaurantBody>(async (req, res) => {
     console.log('req.body'+req.body);
     const {
       name,
@@ -184,15 +190,11 @@ router.post('/', asyncHandler(async (req, res) => {
 
      // Validare
     if (!name || !address) {
-      return res.status(400).json({ 
-        error: 'Name and address are required' 
-      });
+      throw new ApiError(400, 'VALIDATION_ERROR', 'Name and address are required');
     }
 
     if (!categoryIds || !Array.isArray(categoryIds) || categoryIds.length === 0) {
-      return res.status(400).json({ 
-        error: 'At least one category is required' 
-      });
+      throw new ApiError(400, 'VALIDATION_ERROR', 'At least one category is required');
     }
 
      // Verifică că toate categoriile există
@@ -206,24 +208,17 @@ router.post('/', asyncHandler(async (req, res) => {
 
     // Validare pentru discount
     if (applyDiscount && (!discountPercentage || discountPercentage <= 0 || discountPercentage > 100)) {
-      return res.status(400).json({ 
-        error: 'Discount percentage must be between 1 and 100 when applying discount' 
-      });
+      throw new ApiError(400, 'VALIDATION_ERROR', 'Discount percentage must be between 1 and 100 when applying discount');
     }
 
     if (!applyDiscount && discountPercentage) {
-      return res.status(400).json({ 
-        error: 'Cannot set discount percentage when applyDiscount is false' 
-      });
+      throw new ApiError(400, 'VALIDATION_ERROR', 'Cannot set discount percentage when applyDiscount is false');
     }
 
     if (existingCategories.length !== categoryIds.length) {
       const foundIds = existingCategories.map(cat => cat.id);
       const missingIds = categoryIds.filter(id => !foundIds.includes(id));
-      return res.status(400).json({ 
-        error: 'Invalid category IDs',
-        missingIds: missingIds
-      });
+      throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid category IDs', { missingIds });
     }
 
 
@@ -259,7 +254,7 @@ router.post('/', asyncHandler(async (req, res) => {
     res.status(201).json(restaurant);
 }));
 
-router.put('/:id', asyncHandler<{ id: string }>(async (req, res) => {
+router.put('/:id', asyncHandler<{ id: string }, unknown, UpdateRestaurantBody>(async (req, res) => {
     const { id } = req.params;
     const {
       name,
@@ -278,9 +273,7 @@ router.put('/:id', asyncHandler<{ id: string }>(async (req, res) => {
 
     // Validare pentru discount
     if (applyDiscount && (!discountPercentage || discountPercentage <= 0 || discountPercentage > 100)) {
-      return res.status(400).json({
-        error: 'Discount percentage must be between 1 and 100 when applying discount'
-      });
+      throw new ApiError(400, 'VALIDATION_ERROR', 'Discount percentage must be between 1 and 100 when applying discount');
     }
 
     // Dacă se trimit categoryIds, validează-le și pregătește rescrierea legăturilor.
@@ -288,9 +281,7 @@ router.put('/:id', asyncHandler<{ id: string }>(async (req, res) => {
     let categoriesUpdate = undefined;
     if (categoryIds !== undefined) {
       if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
-        return res.status(400).json({
-          error: 'At least one category is required'
-        });
+        throw new ApiError(400, 'VALIDATION_ERROR', 'At least one category is required');
       }
 
       const existingCategories = await prisma.category.findMany({
@@ -300,10 +291,7 @@ router.put('/:id', asyncHandler<{ id: string }>(async (req, res) => {
       if (existingCategories.length !== categoryIds.length) {
         const foundIds = existingCategories.map(cat => cat.id);
         const missingIds = categoryIds.filter((catId: string) => !foundIds.includes(catId));
-        return res.status(400).json({
-          error: 'Invalid category IDs',
-          missingIds
-        });
+        throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid category IDs', { missingIds });
       }
 
       // Șterge legăturile vechi și creează-le pe cele noi (înlocuire completă).

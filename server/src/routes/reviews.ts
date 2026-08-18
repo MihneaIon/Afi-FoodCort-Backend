@@ -1,24 +1,22 @@
 import express from 'express';
 import { prisma } from '../index';
 import { asyncHandler } from '../utils/asyncHandler';
+import { ApiError } from '../utils/ApiError';
+import { CreateReviewBody } from '../types/dto';
 
 const router = express.Router();
 
 // POST new review
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/', asyncHandler<unknown, unknown, CreateReviewBody>(async (req, res) => {
     const { restaurantId, rating, comment, userName, userEmail } = req.body;
 
     // Validation
     if (!restaurantId || !rating || !userName) {
-      return res.status(400).json({
-        error: 'Restaurant ID, rating, and user name are required'
-      });
+      throw new ApiError(400, 'VALIDATION_ERROR', 'Restaurant ID, rating, and user name are required');
     }
 
     if (rating < 1 || rating > 5) {
-      return res.status(400).json({
-        error: 'Rating must be between 1 and 5'
-      });
+      throw new ApiError(400, 'VALIDATION_ERROR', 'Rating must be between 1 and 5');
     }
 
     // Check if restaurant exists
@@ -27,7 +25,7 @@ router.post('/', asyncHandler(async (req, res) => {
     });
 
     if (!restaurant) {
-      return res.status(404).json({ error: 'Restaurant not found' });
+      throw new ApiError(404, 'NOT_FOUND', 'Restaurant not found');
     }
 
     // Create the review and recompute the restaurant's average rating atomically.

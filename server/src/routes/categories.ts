@@ -1,6 +1,8 @@
 import express from 'express';import { Prisma } from '@prisma/client';
 import { prisma } from '../index';
 import { asyncHandler } from '../utils/asyncHandler';
+import { ApiError } from '../utils/ApiError';
+import { CategoryAuditQuery, CreateCategoryBody } from '../types/dto';
 
 const router = express.Router();
 
@@ -52,7 +54,7 @@ router.get('/suggestions', asyncHandler(async (req, res) => {
 }));
 
 // GET audit log for categories
-router.get('/audit', asyncHandler(async (req, res) => {
+router.get('/audit', asyncHandler<unknown, unknown, unknown, CategoryAuditQuery>(async (req, res) => {
     const { limit = 50, category_id } = req.query;
 
     // Clamp the limit to a sane range so a client can't request the whole table.
@@ -96,18 +98,18 @@ router.get('/:id', asyncHandler<{ id: string }>(async (req, res) => {
     });
 
     if (!category) {
-      return res.status(404).json({ error: 'Category not found' });
+      throw new ApiError(404, 'NOT_FOUND', 'Category not found');
     }
 
     res.json(category);
 }));
 
 // POST new category
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/', asyncHandler<unknown, unknown, CreateCategoryBody>(async (req, res) => {
     const { name, description, icon } = req.body;
 
     if (!name) {
-      return res.status(400).json({ error: 'Category name is required' });
+      throw new ApiError(400, 'VALIDATION_ERROR', 'Category name is required');
     }
 
     // Type the result properly
@@ -116,7 +118,7 @@ router.post('/', asyncHandler(async (req, res) => {
     `;
 
     if (!result || result.length === 0) {
-      return res.status(500).json({ error: 'Failed to create category' });
+      throw new ApiError(500, 'INTERNAL_ERROR', 'Failed to create category');
     }
 
     const newCategory: CategoryProcedureResult = result[0];
