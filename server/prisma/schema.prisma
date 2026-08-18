@@ -59,9 +59,11 @@ model Review {
   id           String     @id @default(cuid())
   rating       Int        // 1-5
   comment      String?
+  userName     String     @default("Anonymous") // autorul recenziei (cerut de API)
+  userEmail    String?                            // opțional
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   restaurantId String
   createdAt    DateTime   @default(now())
-  
+
   @@map("reviews")
 }

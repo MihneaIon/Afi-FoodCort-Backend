@@ -70,27 +70,28 @@ router.get('/', asyncHandler(async (req, res) => {
     }
 
     // Sortare - configurează orderBy
-    let orderBy: any = {};
-    
+    const order: Prisma.SortOrder = sortOrder === 'asc' ? 'asc' : 'desc';
+    let orderBy: Prisma.RestaurantOrderByWithRelationInput = {};
+
     switch (sortBy) {
       case 'name':
-        orderBy = { name: sortOrder };
+        orderBy = { name: order };
         break;
       case 'rating':
-        orderBy = { rating: sortOrder };
+        orderBy = { rating: order };
         break;
       case 'price':
         // Pentru price, sortăm după priceRange (care e string)
         // Vom face o sortare custom
-        orderBy = { priceRange: sortOrder };
+        orderBy = { priceRange: order };
         break;
       case 'newest':
-        orderBy = { createdAt: sortOrder };
+        orderBy = { createdAt: order };
         break;
       case 'mealTickets':
         // Field is `isAcceptedMealTickets` in the schema; the old
         // `acceptsMealTickets` did not exist and made Prisma throw on this sort.
-        orderBy = { isAcceptedMealTickets: sortOrder };
+        orderBy = { isAcceptedMealTickets: order };
         break;
       default:
         orderBy = { rating: 'desc' };
