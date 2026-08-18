@@ -335,4 +335,13 @@ router.put('/:id', asyncHandler<{ id: string }, unknown, UpdateRestaurantBody>(a
     res.json(restaurant);
 }));
 
+// DELETE restaurant. Categories/reviews are removed via the schema's
+// onDelete: Cascade, so no manual cleanup is needed here. A missing id
+// throws Prisma's P2025, which errorHandler already maps to 404.
+router.delete('/:id', asyncHandler<{ id: string }>(async (req, res) => {
+    await prisma.restaurant.delete({ where: { id: req.params.id } });
+
+    res.status(204).send();
+}));
+
 export default router;
