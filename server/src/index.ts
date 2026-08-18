@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import restaurantRoutes from './routes/restaurant';
 import categoryRoutes from './routes/categories';
 import reviewsRouter from './routes/reviews';
+import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
 
@@ -32,6 +33,10 @@ app.get("/", (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+// Must be registered after all routes — Express only treats a
+// 4-arg handler as error middleware based on its position in the stack.
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
