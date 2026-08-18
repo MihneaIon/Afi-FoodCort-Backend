@@ -1,12 +1,13 @@
 import express from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../index'
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = express.Router();
 
 // GET all restaurants with filters and pagination
-router.get('/', async (req, res) => {
-  try {
-    const { 
+router.get('/', asyncHandler(async (req, res) => {
+    const {
       category, 
       priceRange, 
       rating,
@@ -25,7 +26,7 @@ router.get('/', async (req, res) => {
     
     console.log('Backend: Pagination', { page: Number(page), limit: Number(limit), skip });
 
-    const where: any = {};
+    const where: Prisma.RestaurantWhereInput = {};
 
     // Search filter
     if (search) {
@@ -119,19 +120,13 @@ router.get('/', async (req, res) => {
       prisma.restaurant.count({ where })
     ]);
 
-    // Pentru sortarea după preț, am sortare custom în JavaScript
-    let sortedRestaurants = restaurants;
-    if (sortBy === 'price') {
-      const priceOrder = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
-      sortedRestaurants = restaurants.sort((a, b) => {
-        const aPrice = priceOrder[a.priceRange as keyof typeof priceOrder] || 0;
-        const bPrice = priceOrder[b.priceRange as keyof typeof priceOrder] || 0;
-        return sortOrder === 'asc' ? aPrice - bPrice : bPrice - aPrice;
-      });
-    }
-
+    // NOTE: price sorting is now done in the DB (see the switch above:
+    // orderBy = { priceRange: sortOrder }). The '$', '$$', '$$$', '$$$$' values
+    // sort correctly lexicographically ('$' < '$$' < '$$$' < '$$$$'), so no JS
+    // re-sort is needed. The old JS sort only reordered the current page, which
+    // produced a wrong global order once pagination kicked in.
     const response = {
-      restaurants: sortedRestaurants,
+      restaurants,
       pagination: {
         page: Number(page),
         limit: Number(limit),
@@ -140,21 +135,11 @@ router.get('/', async (req, res) => {
       }
     };
 
-    console.log('Backend: Sending response', {
-      restaurantCount: sortedRestaurants.length,
-      pagination: response.pagination
-    });
-
     res.json(response);
-  } catch (error) {
-    console.error('Error fetching restaurants:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+}));
 
 // GET single restaurant
-router.get('/:id', async (req, res) => {
-  try {
+router.get('/:id', asyncHandler<{ id: string }>(async (req, res) => {
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: req.params.id },
       include: {
@@ -174,15 +159,10 @@ router.get('/:id', async (req, res) => {
     }
 
     res.json(restaurant);
-  } catch (error) {
-    console.error('Error fetching restaurant:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+}));
 
 // POST new restaurant
-router.post('/', async (req, res) => {
-  try {
+router.post('/', asyncHandler(async (req, res) => {
     console.log('req.body'+req.body);
     const {
       name,
@@ -276,28 +256,9 @@ router.post('/', async (req, res) => {
     });
 
     res.status(201).json(restaurant);
-  } catch (error) {
-    console.error('Error creating restaurant:', error);
-    if (typeof error === 'object' && error !== null) {
-      console.error('Error details:', {
-        code: (error as any).code,
-        meta: (error as any).meta,
-        message: (error as any).message
-      });
-      res.status(500).json({ 
-        error: 'Internal server error',
-        details: process.env.NODE_ENV === 'development' ? (error as any).message : undefined
-      });
-    } else {
-      res.status(500).json({ 
-        error: 'Internal server error'
-      });
-    }
-  }
-});
+}));
 
-router.put('/:id', async (req, res) => {
-  try {
+router.put('/:id', asyncHandler<{ id: string }>(async (req, res) => {
     const { id } = req.params;
     const {
       name,
@@ -316,9 +277,39 @@ router.put('/:id', async (req, res) => {
 
     // Validare pentru discount
     if (applyDiscount && (!discountPercentage || discountPercentage <= 0 || discountPercentage > 100)) {
-      return res.status(400).json({ 
-        error: 'Discount percentage must be between 1 and 100 when applying discount' 
+      return res.status(400).json({
+        error: 'Discount percentage must be between 1 and 100 when applying discount'
       });
+    }
+
+    // Dacă se trimit categoryIds, validează-le și pregătește rescrierea legăturilor.
+    // Înainte acest câmp era ignorat, deci editarea categoriilor se pierdea.
+    let categoriesUpdate = undefined;
+    if (categoryIds !== undefined) {
+      if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+        return res.status(400).json({
+          error: 'At least one category is required'
+        });
+      }
+
+      const existingCategories = await prisma.category.findMany({
+        where: { id: { in: categoryIds } }
+      });
+
+      if (existingCategories.length !== categoryIds.length) {
+        const foundIds = existingCategories.map(cat => cat.id);
+        const missingIds = categoryIds.filter((catId: string) => !foundIds.includes(catId));
+        return res.status(400).json({
+          error: 'Invalid category IDs',
+          missingIds
+        });
+      }
+
+      // Șterge legăturile vechi și creează-le pe cele noi (înlocuire completă).
+      categoriesUpdate = {
+        deleteMany: {},
+        create: categoryIds.map((categoryId: string) => ({ categoryId }))
+      };
     }
 
     // Update restaurant
@@ -336,6 +327,7 @@ router.put('/:id', async (req, res) => {
         applyDiscount,              // Nou
         discountPercentage: applyDiscount ? discountPercentage : null, // Nou
         isAcceptedMealTickets,
+        ...(categoriesUpdate ? { categories: categoriesUpdate } : {})
       },
       include: {
         categories: {
@@ -348,10 +340,6 @@ router.put('/:id', async (req, res) => {
     });
 
     res.json(restaurant);
-  } catch (error) {
-    console.error('Error updating restaurant:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+}));
 
 export default router;

@@ -1,11 +1,11 @@
 import express from 'express';
 import { prisma } from '../index';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = express.Router();
 
 // POST new review
-router.post('/', async (req, res) => {
-  try {
+router.post('/', asyncHandler(async (req, res) => {
     const { restaurantId, rating, comment, userName, userEmail } = req.body;
 
     // Validation
@@ -30,43 +30,45 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Restaurant not found' });
     }
 
-    // Create review
-    const review = await prisma.review.create({
-      data: {
-        restaurantId,
-        rating,
-        comment
-      }
-    });
+    // Create the review and recompute the restaurant's average rating atomically.
+    // Previously userName/userEmail were required/collected but never stored, and
+    // the average was computed by loading every review into memory.
+    const review = await prisma.$transaction(async (tx) => {
+      const created = await tx.review.create({
+        data: {
+          restaurantId,
+          rating,
+          comment,
+          userName,
+          userEmail
+        }
+      });
 
-    // Update restaurant average rating
-    const reviews = await prisma.review.findMany({
-      where: { restaurantId }
-    });
+      // Aggregate in the DB instead of loading all reviews.
+      const agg = await tx.review.aggregate({
+        where: { restaurantId },
+        _avg: { rating: true }
+      });
 
-    const averageRating = reviews.reduce((sum: any, r: { rating: any; }) => sum + r.rating, 0) / reviews.length;
+      await tx.restaurant.update({
+        where: { id: restaurantId },
+        data: { rating: agg._avg.rating ?? 0 }
+      });
 
-    await prisma.restaurant.update({
-      where: { id: restaurantId },
-      data: { rating: averageRating }
+      return created;
     });
 
     res.status(201).json(review);
-  } catch (error) {
-    console.error('Error creating review:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+}));
 
 // router.get('/', async (req, res) => {
 //   try {
-//     const 
+//     const
 //   }
 // })
 
 // GET reviews for restaurant
-router.get('/restaurant/:restaurantId', async (req, res) => {
-  try {
+router.get('/restaurant/:restaurantId', asyncHandler<{ restaurantId: string }>(async (req, res) => {
     const { restaurantId } = req.params;
 
     const reviews = await prisma.review.findMany({
@@ -75,10 +77,6 @@ router.get('/restaurant/:restaurantId', async (req, res) => {
     });
 
     res.json(reviews);
-  } catch (error) {
-    console.error('Error fetching reviews:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+}));
 
 export default router;
