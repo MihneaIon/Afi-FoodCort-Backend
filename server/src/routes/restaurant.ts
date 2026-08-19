@@ -3,36 +3,40 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../index'
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
+import { validate } from '../middleware/validate';
 import {
   RestaurantListQuery,
   CreateRestaurantBody,
   UpdateRestaurantBody,
-  PRICE_RANGES
-} from '../types/dto';
+  restaurantListQuerySchema,
+  createRestaurantBodySchema,
+  updateRestaurantBodySchema,
+  idParamSchema
+} from '../validation/schemas';
 
 const router = express.Router();
 
 // GET all restaurants with filters and pagination
-router.get('/', asyncHandler<unknown, unknown, unknown, RestaurantListQuery>(async (req, res) => {
+router.get('/', validate({ query: restaurantListQuerySchema }), asyncHandler<unknown, unknown, unknown, RestaurantListQuery>(async (req, res) => {
     const {
-      category, 
-      priceRange, 
+      category,
+      priceRange,
       rating,
       discounted,
       applyMealTickets,
       search,
-      page = 1,
-      limit = 12,
-      sortBy = 'rating',      
-      sortOrder = 'desc'      // sau asc
+      page,
+      limit,
+      sortBy,
+      sortOrder
     } = req.query;
 
     console.log('Backend: Received query params', req.query);
 
-    // Clamp page/limit so a client can't request an unbounded page size
-    // (e.g. limit=999999) or a negative/zero page.
-    const parsedPage = Math.max(Number(page) || 1, 1);
-    const parsedLimit = Math.min(Math.max(Number(limit) || 12, 1), 100);
+    // page/limit are already validated, coerced, and clamped by
+    // restaurantListQuerySchema.
+    const parsedPage = page;
+    const parsedLimit = limit;
     const skip = (parsedPage - 1) * parsedLimit;
 
     console.log('Backend: Pagination', { page: parsedPage, limit: parsedLimit, skip });
@@ -64,9 +68,9 @@ router.get('/', asyncHandler<unknown, unknown, unknown, RestaurantListQuery>(asy
     }
 
     // Rating filter
-    if (rating) {
+    if (rating !== undefined) {
       where.rating = {
-        gte: Number(rating)
+        gte: rating
       };
     }
 
@@ -151,7 +155,7 @@ router.get('/', asyncHandler<unknown, unknown, unknown, RestaurantListQuery>(asy
 }));
 
 // GET single restaurant
-router.get('/:id', asyncHandler<{ id: string }>(async (req, res) => {
+router.get('/:id', validate({ params: idParamSchema }), asyncHandler<{ id: string }>(async (req, res) => {
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: req.params.id },
       include: {
@@ -174,8 +178,7 @@ router.get('/:id', asyncHandler<{ id: string }>(async (req, res) => {
 }));
 
 // POST new restaurant
-router.post('/', asyncHandler<unknown, unknown, CreateRestaurantBody>(async (req, res) => {
-    console.log('req.body'+req.body);
+router.post('/', validate({ body: createRestaurantBodySchema }), asyncHandler<unknown, unknown, CreateRestaurantBody>(async (req, res) => {
     const {
       name,
       description,
@@ -184,29 +187,16 @@ router.post('/', asyncHandler<unknown, unknown, CreateRestaurantBody>(async (req
       website,
       imageUrl,
       priceRange,
-      applyDiscount = false,      // Nou cu valoare default
-      discountPercentage,         // Nou
+      applyDiscount,
+      discountPercentage,
       isAcceptedMealTickets,
       categoryIds
     } = req.body;
 
-    console.log('Request body:', req.body);
-    console.log('Category IDs:', categoryIds);
-
-     // Validare
-    if (!name || !address) {
-      throw new ApiError(400, 'VALIDATION_ERROR', 'Name and address are required');
-    }
-
-    if (!PRICE_RANGES.includes(priceRange)) {
-      throw new ApiError(400, 'VALIDATION_ERROR', `priceRange must be one of ${PRICE_RANGES.join(', ')}`);
-    }
-
-    if (!categoryIds || !Array.isArray(categoryIds) || categoryIds.length === 0) {
-      throw new ApiError(400, 'VALIDATION_ERROR', 'At least one category is required');
-    }
-
-     // Verifică că toate categoriile există
+    // Field presence/format/cross-field checks (name/address required,
+    // priceRange enum, categoryIds non-empty, discount range) are handled by
+    // createRestaurantBodySchema. What's left is the referential check below,
+    // which needs a DB round-trip and so can't live in the schema.
     const existingCategories = await prisma.category.findMany({
       where: {
         id: {
@@ -214,15 +204,6 @@ router.post('/', asyncHandler<unknown, unknown, CreateRestaurantBody>(async (req
         }
       }
     });
-
-    // Validare pentru discount
-    if (applyDiscount && (!discountPercentage || discountPercentage <= 0 || discountPercentage > 100)) {
-      throw new ApiError(400, 'VALIDATION_ERROR', 'Discount percentage must be between 1 and 100 when applying discount');
-    }
-
-    if (!applyDiscount && discountPercentage) {
-      throw new ApiError(400, 'VALIDATION_ERROR', 'Cannot set discount percentage when applyDiscount is false');
-    }
 
     if (existingCategories.length !== categoryIds.length) {
       const foundIds = existingCategories.map(cat => cat.id);
@@ -263,7 +244,7 @@ router.post('/', asyncHandler<unknown, unknown, CreateRestaurantBody>(async (req
     res.status(201).json(restaurant);
 }));
 
-router.put('/:id', asyncHandler<{ id: string }, unknown, UpdateRestaurantBody>(async (req, res) => {
+router.put('/:id', validate({ params: idParamSchema, body: updateRestaurantBodySchema }), asyncHandler<{ id: string }, unknown, UpdateRestaurantBody>(async (req, res) => {
     const { id } = req.params;
     const {
       name,
@@ -280,23 +261,12 @@ router.put('/:id', asyncHandler<{ id: string }, unknown, UpdateRestaurantBody>(a
       categoryIds
     } = req.body;
 
-    // Validare pentru discount
-    if (applyDiscount && (!discountPercentage || discountPercentage <= 0 || discountPercentage > 100)) {
-      throw new ApiError(400, 'VALIDATION_ERROR', 'Discount percentage must be between 1 and 100 when applying discount');
-    }
-
-    if (priceRange !== undefined && !PRICE_RANGES.includes(priceRange)) {
-      throw new ApiError(400, 'VALIDATION_ERROR', `priceRange must be one of ${PRICE_RANGES.join(', ')}`);
-    }
-
-    // Dacă se trimit categoryIds, validează-le și pregătește rescrierea legăturilor.
-    // Înainte acest câmp era ignorat, deci editarea categoriilor se pierdea.
+    // priceRange enum, the discount range, and categoryIds non-emptiness are
+    // validated by updateRestaurantBodySchema. Dacă se trimit categoryIds,
+    // verifică-le existența și pregătește rescrierea legăturilor — înainte
+    // acest câmp era ignorat, deci editarea categoriilor se pierdea.
     let categoriesUpdate = undefined;
     if (categoryIds !== undefined) {
-      if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
-        throw new ApiError(400, 'VALIDATION_ERROR', 'At least one category is required');
-      }
-
       const existingCategories = await prisma.category.findMany({
         where: { id: { in: categoryIds } }
       });
@@ -347,7 +317,7 @@ router.put('/:id', asyncHandler<{ id: string }, unknown, UpdateRestaurantBody>(a
 // DELETE restaurant. Categories/reviews are removed via the schema's
 // onDelete: Cascade, so no manual cleanup is needed here. A missing id
 // throws Prisma's P2025, which errorHandler already maps to 404.
-router.delete('/:id', asyncHandler<{ id: string }>(async (req, res) => {
+router.delete('/:id', validate({ params: idParamSchema }), asyncHandler<{ id: string }>(async (req, res) => {
     await prisma.restaurant.delete({ where: { id: req.params.id } });
 
     res.status(204).send();

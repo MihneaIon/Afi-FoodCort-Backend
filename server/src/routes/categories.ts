@@ -2,7 +2,14 @@ import express from 'express';import { Prisma } from '@prisma/client';
 import { prisma } from '../index';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
-import { CategoryAuditQuery, CreateCategoryBody } from '../types/dto';
+import { validate } from '../middleware/validate';
+import {
+  CategoryAuditQuery,
+  CreateCategoryBody,
+  categoryAuditQuerySchema,
+  createCategoryBodySchema,
+  idParamSchema
+} from '../validation/schemas';
 
 const router = express.Router();
 
@@ -54,11 +61,8 @@ router.get('/suggestions', asyncHandler(async (req, res) => {
 }));
 
 // GET audit log for categories
-router.get('/audit', asyncHandler<unknown, unknown, unknown, CategoryAuditQuery>(async (req, res) => {
-    const { limit = 50, category_id } = req.query;
-
-    // Clamp the limit to a sane range so a client can't request the whole table.
-    const parsedLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
+router.get('/audit', validate({ query: categoryAuditQuerySchema }), asyncHandler<unknown, unknown, unknown, CategoryAuditQuery>(async (req, res) => {
+    const { limit: parsedLimit, category_id } = req.query;
 
     // Parameterized query: category_id is bound as a value, never concatenated,
     // so this is no longer vulnerable to SQL injection.
@@ -73,7 +77,7 @@ router.get('/audit', asyncHandler<unknown, unknown, unknown, CategoryAuditQuery>
 }));
 
 // GET single category (dynamic route — declared AFTER the static ones above)
-router.get('/:id', asyncHandler<{ id: string }>(async (req, res) => {
+router.get('/:id', validate({ params: idParamSchema }), asyncHandler<{ id: string }>(async (req, res) => {
     const category = await prisma.category.findUnique({
       where: { id: req.params.id },
       include: {
@@ -105,12 +109,10 @@ router.get('/:id', asyncHandler<{ id: string }>(async (req, res) => {
 }));
 
 // POST new category
-router.post('/', asyncHandler<unknown, unknown, CreateCategoryBody>(async (req, res) => {
+router.post('/', validate({ body: createCategoryBodySchema }), asyncHandler<unknown, unknown, CreateCategoryBody>(async (req, res) => {
     const { name, description, icon } = req.body;
 
-    if (!name) {
-      throw new ApiError(400, 'VALIDATION_ERROR', 'Category name is required');
-    }
+    // name presence is validated by createCategoryBodySchema.
 
     // Type the result properly
     const result = await prisma.$queryRaw<CategoryProcedureResult[]>`

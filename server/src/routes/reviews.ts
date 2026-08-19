@@ -2,22 +2,23 @@ import express from 'express';
 import { prisma } from '../index';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
-import { CreateReviewBody, ReviewsByRestaurantQuery } from '../types/dto';
+import { validate } from '../middleware/validate';
+import {
+  CreateReviewBody,
+  ReviewsByRestaurantQuery,
+  createReviewBodySchema,
+  reviewsByRestaurantQuerySchema,
+  restaurantIdParamSchema
+} from '../validation/schemas';
 
 const router = express.Router();
 
 // POST new review
-router.post('/', asyncHandler<unknown, unknown, CreateReviewBody>(async (req, res) => {
+router.post('/', validate({ body: createReviewBodySchema }), asyncHandler<unknown, unknown, CreateReviewBody>(async (req, res) => {
     const { restaurantId, rating, comment, userName, userEmail } = req.body;
 
-    // Validation
-    if (!restaurantId || !rating || !userName) {
-      throw new ApiError(400, 'VALIDATION_ERROR', 'Restaurant ID, rating, and user name are required');
-    }
-
-    if (rating < 1 || rating > 5) {
-      throw new ApiError(400, 'VALIDATION_ERROR', 'Rating must be between 1 and 5');
-    }
+    // restaurantId/userName presence, rating being a number in 1-5, and
+    // userEmail's format are all validated by createReviewBodySchema.
 
     // Check if restaurant exists
     const restaurant = await prisma.restaurant.findUnique({
@@ -66,14 +67,11 @@ router.post('/', asyncHandler<unknown, unknown, CreateReviewBody>(async (req, re
 // })
 
 // GET reviews for restaurant
-router.get('/restaurant/:restaurantId', asyncHandler<{ restaurantId: string }, unknown, unknown, ReviewsByRestaurantQuery>(async (req, res) => {
+router.get('/restaurant/:restaurantId', validate({ params: restaurantIdParamSchema, query: reviewsByRestaurantQuerySchema }), asyncHandler<{ restaurantId: string }, unknown, unknown, ReviewsByRestaurantQuery>(async (req, res) => {
     const { restaurantId } = req.params;
-    const { page = 1, limit = 10 } = req.query;
-
-    // Clamp page/limit the same way the restaurant list endpoint does, so a
-    // client can't request an unbounded page size (e.g. limit=999999).
-    const parsedPage = Math.max(Number(page) || 1, 1);
-    const parsedLimit = Math.min(Math.max(Number(limit) || 10, 1), 100);
+    // page/limit are already validated, coerced, and clamped by
+    // reviewsByRestaurantQuerySchema.
+    const { page: parsedPage, limit: parsedLimit } = req.query;
     const skip = (parsedPage - 1) * parsedLimit;
 
     const [reviews, total] = await Promise.all([

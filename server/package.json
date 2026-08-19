@@ -25,7 +25,8 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -39,7 +40,7 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
   },
-  "prisma":{
+  "prisma": {
     "seed": "ts-node prisma/seed.ts && ts-node prisma/newcategories.ts"
   },
   "engines": {
